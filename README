@@ -2,3 +2,14 @@ py-tone-generator
 =================
 
 Simple tone generator written in python.
+
+TODO
+----
+Add multitone support:
+gst-launch audiotestsrc volume=0 ! \
+    adder name=mix ! \
+    audioconvert ! \
+    autoaudiosink  \
+    audiotestsrc freq=523 ! mix. \
+    audiotestsrc freq=659 ! mix. \
+    audiotestsrc freq=784 ! mix.
