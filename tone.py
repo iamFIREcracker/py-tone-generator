@@ -6,7 +6,9 @@
 
 from __future__ import division
 from math import log10
+from math import pi
 
+import cairo
 import gobject
 import gtk
 from gtk import gdk
@@ -34,6 +36,9 @@ class ToneGenerator(gtk.Window):
         """
         super(ToneGenerator, self).__init__()
 
+        self.freq = (100, 20000)
+        self.volume = (0.01, 1)
+        
         self.connect('delete-event', self.delete_cb)
         
         self.darea = gtk.DrawingArea()
@@ -74,15 +79,25 @@ class ToneGenerator(gtk.Window):
         return True
 
     def configure_cb(self, darea, event):
-        """Store the dimensions of the drawing area for future use.
+        """Update the cairo context used for the drawing actions.
         """
+        width, height = darea.window.get_size()
+        self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        self.cr = cairo.Context(self.surface)
+        self.draw_grid(self.cr, width, height)
         return True
     
     def expose_cb(self, darea, event):
         """Redraw either the whole window or a part of it.
         """
+        cr = darea.window.cairo_create()
+        cr.rectangle(event.area.x, event.area.y,
+                     event.area.width, event.area.height)
+        cr.clip()
+        cr.set_source_surface(self.surface, 0, 0)
+        cr.paint()
         return False
-
+    
     def motion_notify_cb(self, darea, event):
         """Change the frequency and the volume of the generated sound depending
         on the mouse position inside the window.
@@ -98,6 +113,54 @@ class ToneGenerator(gtk.Window):
             self.emit('tone-value', freq, volume)
         return True
 
+    def draw_grid(self, cr, width, height):
+        """Draw a grid with values of frequency and volume.
+        
+        Keywords:
+            cr cairo context used for drawing operations.
+        """
+        # portrait
+        cr.set_source_rgb(1, 1, 1)
+        cr.rectangle(0, 0, width, height)
+        cr.fill_preserve()
+        cr.set_source_rgb(0, 0, 0)
+        cr.stroke()
+        
+        # grid
+        f_min, f_max = self.freq
+        v_min, v_max = self.volume
+        cr.set_dash([1.0, 1.0])
+        cr.set_line_width(1.0)
+        for i in xrange(10):
+            norm_x = i / 10
+            norm_y = i / 10
+            x = int((1 - norm_x) * width)
+            y = int(norm_y * height)
+            
+            #  horizontal lines
+            cr.move_to(0, y + 0.5)
+            cr.rel_line_to(width - 1, 0)
+            cr.stroke()
+            
+            # vertical lines
+            cr.move_to(x + 0.5, 0)
+            cr.rel_line_to(0, height - 1)
+            cr.stroke()
+            
+            # volume labels
+            exp = (1 - norm_y) * (log10(v_max) - log10(v_min)) + log10(v_min)
+            text = str(int(10 ** (exp + 2))) + '%'
+            _, _, _, t_height, _, _ = cr.text_extents(text)
+            cr.move_to(2, 2 + y + t_height)
+            cr.show_text(text)
+            
+            # freq labels
+            exp = (1 - norm_x) * (log10(f_max) - log10(f_min)) + log10(f_min)
+            text = str(int(10 ** exp)) + 'Hz'
+            _, _, t_width, _, _, _ = cr.text_extents(text)
+            cr.move_to(-2 + x - t_width, -2 + height)
+            cr.show_text(text)
+
     def coords_to_settings(self, x, y):
         """Convert given coordinate to volume and frequency.
         
@@ -112,17 +175,19 @@ class ToneGenerator(gtk.Window):
         Return:
             Pair of frequency and volume values.
         """
-        _, _, width, height = self.darea.get_allocation()
+        width, height = self.darea.window.get_size()
         
-        scale_width = log10(20000) # between 1 and 20000
-        scale_offset = 0 # start from 1
+        f_min, f_max = self.freq
+        scale_width = log10(f_max) - log10(f_min)
+        scale_offset = log10(f_min)
         v = (scale_width * x / width) + scale_offset
-        freq = max(0, min(10 ** v, 20000))
+        freq = max(f_min, min(10 ** v, f_max))
         
         y = height - 1 - y
-        scale_width = 2 # between 0.01 and 1
-        scale_offset = -2 # start from 0.01
+        v_min, v_max = self.volume
+        scale_width = log10(v_max) - log10(v_min)
+        scale_offset = log10(v_min)
         v = (scale_width * y / height) + scale_offset 
-        volume = max(0, min(10 ** v, 1))
+        volume = max(v_min, min(10 ** v, v_max))
 
         return freq, volume
