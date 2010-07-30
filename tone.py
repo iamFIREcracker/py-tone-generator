@@ -6,7 +6,6 @@
 
 from __future__ import division
 from math import log10
-from math import pi
 
 import cairo
 import gobject
@@ -40,8 +39,6 @@ class ToneGeneratorWidget(gtk.Window):
         self.freq = (100, 10000)
         self.volume = (0.01, 1)
         
-        self.connect('delete-event', self.delete_cb)
-        
         self.darea = gtk.DrawingArea()
         self.darea.add_events(gdk.BUTTON_PRESS_MASK
                               | gdk.BUTTON_RELEASE_MASK
@@ -54,11 +51,6 @@ class ToneGeneratorWidget(gtk.Window):
         self.darea.connect('motion_notify_event', self.motion_notify_cb)
         self.add(self.darea)
         self.show_all()
-
-    def delete_cb(self, window, event):
-        """Close the window and quit the mainloop.
-        """
-        gtk.main_quit()
 
     def button_press_cb(self, darea, event):
         """Start gstreamer pipeline.
@@ -222,6 +214,5 @@ class GstToneGenerator(object):
             freq frequency value between 0 and 20k.
             volume volume value between 0 and 1.
         """
-        print freq, volume
         self.source.set_property('freq', max(0, min(freq, 20000)))
         self.source.set_property('volume', max(0, min(volume, 1)))
