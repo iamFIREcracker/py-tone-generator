@@ -15,8 +15,8 @@ import gtk
 from gtk import gdk
 
 
-class ToneGenerator(gtk.Window):
-    """Widget used to generate pairs of frequencies and volume.
+class ToneGeneratorWidget(gtk.Window):
+    """Widget used to generate pairs of frequencies and volume values.
     
     Create a drawing area connected to mouse events. Depending on the position
     of the mouse inside the drawing area, the values of frequency and volume
@@ -35,7 +35,7 @@ class ToneGenerator(gtk.Window):
         
         Create a drawing area and connect to mouse events.
         """
-        super(ToneGenerator, self).__init__()
+        super(ToneGeneratorWidget, self).__init__()
 
         self.freq = (100, 10000)
         self.volume = (0.01, 1)
@@ -193,44 +193,35 @@ class ToneGenerator(gtk.Window):
 
         return freq, volume
     
-class GstToneGenerator(ToneGenerator):
+class GstToneGenerator(object):
     """Gstreamer based tone generator.
-    
-    Extend the base class ToneGenerator in order to control both the given
-    pipeline and source element with emitted signals.
     """
     
-    def __init__(self, pipeline, source):
+    def __init__(self):
         """Constructor.
-        
-        Store the pipeline locally.
-        
-        Keywords:
-            pipeline gstreamer pipeline.
-            source element used to generate sounds.
         """
-        super(GstToneGenerator, self).__init__()
-        self.connect('end-tone', self.end_tone_cb)
-        self.connect('start-tone', self.start_tone_cb)
-        self.connect('tone-value', self.tone_value_cb)
-        
-        self.pipeline = pipeline
-        self.source = source
-        
-    def end_tone_cb(self, widget):
-        """Stop the pipeline.
-        """
-        self.pipeline.set_state(gst.STATE_NULL)
-        
-    def start_tone_cb(self, widget):
-        """Start the pipeline.
-        
-        This method will make the pipeline to start reproducing sounds.
+        str_pipe = '''audiotestsrc name=source !
+                      autoaudiosink'''
+        self.pipeline = gst.parse_launch(str_pipe)
+        self.source = self.pipeline.get_by_name('source')
+
+    def start(self):
+        """Start emitting sounds.
         """
         self.pipeline.set_state(gst.STATE_PLAYING)
         
-    def tone_value_cb(self, widget, freq, volume):
-        """Change the values of frequency and volume with the given ones.
+    def stop(self):
+        """Stop emitting sounds.
         """
-        self.source.set_property('freq', freq)
-        self.source.set_property('volume', volume)
+        self.pipeline.set_state(gst.STATE_NULL)
+        
+    def set_values(self, freq, volume):
+        """Change the frequency and volume values of the sound source.
+        
+        Keywords:
+            freq frequency value between 0 and 20k.
+            volume volume value between 0 and 1.
+        """
+        print freq, volume
+        self.source.set_property('freq', max(0, min(freq, 20000)))
+        self.source.set_property('volume', max(0, min(volume, 1)))
