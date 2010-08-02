@@ -193,7 +193,8 @@ class GstToneGenerator(object):
         """Constructor.
         """
         str_pipe = '''audiotestsrc name=source !
-                      autoaudiosink'''
+                      autoaudiosink
+                   '''
         self.pipeline = gst.parse_launch(str_pipe)
         self.source = self.pipeline.get_by_name('source')
 
